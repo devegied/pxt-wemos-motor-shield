@@ -47,7 +47,7 @@ namespace WEMOS_Motor_Shield {
      */
     //% group=Settings
     //% blockId=wemos_set_address
-    //% block="set shield address to %address"
+    //% block="Set Motor Shield I2C address to %address"
     //% weight=50 blockGap=8
     export function init(address: Address): void {
         if (initalised == false) {
@@ -105,7 +105,7 @@ namespace WEMOS_Motor_Shield {
      */
     //% group=Motors
     //% blockId=wemos_motor_on
-    //% block="%motor|on direction %dir|speed %speed"
+    //% block="Run %motor|%dir|speed %speed"
     //% weight=100 blockGap=8
     //% speed.min=0 speed.max=100
     export function motorOn(motor: Motors, dir: MotorDirection, speed: number): void {
@@ -119,12 +119,12 @@ namespace WEMOS_Motor_Shield {
     }
 
     /**
-     * Turns off all motors
+     * Turns off all motors by going into standby mode
      */
     //% group=Motors
     //% blockId=wemos_standby
     //% weight=65 blockGap=8
-    //%block="turn off all motors"
+    //%block="Turn off all motors"
     export function allOff(): void {
         if (initalised == false) {
             init(i2c_address)
@@ -139,7 +139,7 @@ namespace WEMOS_Motor_Shield {
     //% group=Motors
     //% blockId=wemos_motor_off
     //% weight=65 blockGap=8
-    //%block="turn off %motor"
+    //%block="Turn off %motor"
     export function motorOff(motor: Motors): void {
         if (initalised == false) {
             init(i2c_address)
@@ -148,13 +148,13 @@ namespace WEMOS_Motor_Shield {
     }
 
     /**
-     * Stops motor immediately
+     * Stops motor immediately by shorting pins
      * @param motor which motor to brake
      */
     //% group=Motors
     //% blockId=wemos_motor_brake
     //% weight=65 blockGap=8
-    //%block="turn off %motor"
+    //%block="Stop %motor"
     export function brakeMotor(motor: Motors): void {
         if (initalised == false) {
             init(i2c_address)
