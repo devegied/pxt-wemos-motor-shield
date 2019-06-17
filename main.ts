@@ -4,11 +4,7 @@
 //% weight=100 color=#00A654 icon="\uf1b6" block="Robotics"
 //% groups='["Motors", "Settings"]'
 namespace WEMOS_Motor_Shield {
-    //Constants 
-    let PRESCALE_REG = 0xFE //the prescale register address
-    let MODE_1_REG = 0x00  //The mode 1 register address
-    let StepperPause = 20 //initally set the pause at 20mS
-    // List of motors for the motor blocks to use. These represent register offsets in the PCA9865 driver IC.
+    // List of motors for the motor blocks to use.
     export enum Motors {
         //% block="Motor A"
         MotorA = 0,
@@ -37,6 +33,7 @@ namespace WEMOS_Motor_Shield {
     }
 
     let initalised = false
+    let i2c_buf = pins.createBuffer(3)
     let i2c_address = Address.Address0x30
     let pwm_resolution = 9 // 0-511
     let pwm_frequency = 15000
@@ -65,17 +62,10 @@ namespace WEMOS_Motor_Shield {
      * |       0000 |       1010 |         00010011 10001000 | -> Set 10 bit resolution = 1024 steps and 5KHz Frequency
      */
     function sendCommandConfigurePWM() {
-        /*
-        //function i2cWriteBuffer(address: int32, buf: Buffer, repeat?: boolean): int32;
-        let buf = pins.createBuffer(3)
-        buf[0] = pwm_resolution & 0x0F
-        buf[1] = pwm_frequency>>8
-        buf[2] = pwm_frequency
-        pins.i2cWriteBuffer(address, buf, false)
-        **/
-        //function i2cWriteNumber(address: number, value: number, format: NumberFormat, repeated?: boolean): void;
-        pins.i2cWriteNumber(i2c_address, pwm_resolution & 0x0F, NumberFormat.UInt8BE, true)
-        pins.i2cWriteNumber(i2c_address, pwm_frequency, NumberFormat.UInt16BE, false)
+        i2c_buf[0] = pwm_resolution & 0x0F
+        i2c_buf[1] = pwm_frequency>>8
+        i2c_buf[2] = pwm_frequency
+        pins.i2cWriteBuffer(i2c_address, i2c_buf)
     }
     /**
      * sendCommandSetMotor()
@@ -85,15 +75,10 @@ namespace WEMOS_Motor_Shield {
      * |       0001 |       0001 |      0001 | 0010 00000000 | -> Set MotorB at step 512
      */
     function sendCommandSetMotor(motor: Motors, direction: number, pwm_value: number) {
-        /*
-        Wire.beginTransmission(_address);
-        Wire.write((byte)_motor | (byte)0x10);
-        Wire.write((byte)(direction << 4) | ((byte)(pwm_value >> 8) & (byte)0x0F));
-        Wire.write((byte)pwm_value);
-        Wire.endTransmission(true);
-        */
-        pins.i2cWriteNumber(i2c_address, 0x10 | motor, NumberFormat.UInt8BE, true)
-        pins.i2cWriteNumber(i2c_address, (direction << 12) | pwm_value, NumberFormat.UInt16BE, false)
+        i2c_buf[0] = 0x10 | motor
+        i2c_buf[1] = ((direction << 4) | ((pwm_value >> 8) & 0x0F))
+        i2c_buf[2] = pwm_value
+        pins.i2cWriteBuffer(i2c_address, i2c_buf)
     }
 
 
