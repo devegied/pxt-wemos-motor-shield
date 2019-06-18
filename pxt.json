@@ -1,6 +1,6 @@
 {
     "name": "pxt-wemos-motor-shield",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "Blocks for driving the WEMOS Motor Shield",
     "license": "MIT",
     "dependencies": {
