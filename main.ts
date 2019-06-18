@@ -2,7 +2,7 @@
  * Blocks for driving the WEMOS I2C Motor Shield
  */
 //% weight=100 color=#00A654 icon="\uf1b6" block="Robotics"
-//% groups='["Motors", "Settings"]'
+//% groups='["Motors"]'
 namespace WEMOS_Motor_Shield {
     // List of motors for the motor blocks to use.
     export enum Motors {
@@ -22,99 +22,94 @@ namespace WEMOS_Motor_Shield {
 
     // Shield I2C address
     export enum Address {
-        //% block="0x30"
-        Address0x30 = 48,
-        //% block="0x2F"
-        Address0x2F = 47,
-        //% block="0x2E"
-        Address0x2E = 46,
-        //% block="0x2D"
-        Address0x2D = 45
+        //% block="Shield 0x30"
+        Address0x30 = 3,
+        //% block="Shield 0x2F"
+        Address0x2F = 2,
+        //% block="Shield 0x2E"
+        Address0x2E = 1,
+        //% block="Shield 0x2D"
+        Address0x2D = 0
     }
 
-    let initalised = false
-    let i2c_buf = pins.createBuffer(3)
-    let i2c_address = Address.Address0x30
-    let pwm_resolution = 9 // 0-511
-    let pwm_frequency = 15000
+    const address_base: number = 0x2D;
+    let initalised: boolean[] = [false,false,false,false];
+    let i2c_buf: Buffer = pins.createBuffer(3);
+    const pwm_resolution: number = 9; // speed from 1 to 512
+    const pwm_frequency: number = 15000;
 
     /**
-     * Initializes shield with particular I2C address
-     * @param address shield I2C address
-     */
-    //% group=Settings
-    //% blockId=wemos_set_address
-    //% block="Set Motor Shield I2C address to %address"
-    //% weight=50 blockGap=8
-    export function init(address: Address): void {
-        if (initalised == false) {
-            i2c_address = address
-            sendCommandConfigurePWM()
-            initalised = true
-        }
-    }
-
-    /**
-     * sendCommandConfigurePWM()
+     * low level function to send configuration commant to shield
      * Sets the MotorShield's PWM resolution and frequency
      * |  4 bit CMD |      4 bit |                    16 bit |
      * | config pwm | Resolution |             PWM Frequency |
      * |       0000 |       1010 |         00010011 10001000 | -> Set 10 bit resolution = 1024 steps and 5KHz Frequency
      */
-    function sendCommandConfigurePWM() {
-        i2c_buf[0] = pwm_resolution & 0x0F
-        i2c_buf[1] = pwm_frequency>>8
-        i2c_buf[2] = pwm_frequency
-        pins.i2cWriteBuffer(i2c_address, i2c_buf)
+    function sendCommandConfigurePWM(address: Address): void {
+        i2c_buf[0] = pwm_resolution & 0x0F;
+        i2c_buf[1] = pwm_frequency>>8;
+        i2c_buf[2] = pwm_frequency;
+        pins.i2cWriteBuffer(address_base+address, i2c_buf);
     }
+
     /**
-     * sendCommandSetMotor()
+     * low level function to send motor control commant to shield
      * Sets the motor's PWM duty cycle / pulse and direction
      * |       0001 |      4 bit |     4 bit |        12 bit |
      * |  set motor |      Motor | Direction |          Step |
      * |       0001 |       0001 |      0001 | 0010 00000000 | -> Set MotorB at step 512
      */
-    function sendCommandSetMotor(motor: Motors, direction: number, pwm_value: number) {
-        i2c_buf[0] = 0x10 | motor
-        i2c_buf[1] = ((direction << 4) | ((pwm_value >> 8) & 0x0F))
-        i2c_buf[2] = pwm_value
-        pins.i2cWriteBuffer(i2c_address, i2c_buf)
+    function sendCommandSetMotor(address: Address, motor: Motors, direction: number, pwm_value: number): void {
+        i2c_buf[0] = 0x10 | motor;
+        i2c_buf[1] = ((direction << 4) | ((pwm_value >> 8) & 0x0F));
+        i2c_buf[2] = pwm_value;
+        pins.i2cWriteBuffer(address_base+address, i2c_buf);
     }
 
+    /**
+     * Initializes shield with particular I2C address
+     * @param address shield I2C address
+     */
+    function init(address: Address): void {
+        if (initalised[address] == false) {
+            sendCommandConfigurePWM(address);
+            initalised[address] = true;
+        }
+    }
 
     /**
-     * Sets the requested motor running in chosen direction at a set speed.
+     * Sets the requested motor on selected shield to run in chosen direction at a set speed.
      * @param motor which motor to turn on
      * @param dir   which direction to go
      * @param speed how fast to spin the motor
      */
     //% group=Motors
     //% blockId=wemos_motor_on
-    //% block="Run %motor|%dir|speed %speed"
+    //% block="Run %address|%motor|%dir|at %speed|\\%"
+    //% inlineInputMode=inline
     //% weight=100 blockGap=8
     //% speed.min=0 speed.max=100
-    export function motorOn(motor: Motors, dir: MotorDirection, speed: number): void {
-        if (initalised == false) {
-            init(i2c_address)
+    export function motorOn(address: Address, motor: Motors, dir: MotorDirection, speed: number): void {
+        init(address);
+        if(speed==0)
+            motorOff(address, motor);
+        else{
+            /*convert 1-100 to 1-512*/
+            sendCommandSetMotor(address, motor, dir, Math.round(pins.map(speed, 1, 100, 5, 512)));
         }
-        /*convert 0-100 to 0-512*/
-        let outputVal = pins.map(speed, 0, 100, 0, 512)
-        outputVal = Math.round(outputVal)
-        sendCommandSetMotor(motor, dir, outputVal)
     }
 
     /**
-     * Turns off all motors by going into standby mode
+     * Turns off both motors of choosen shield by puting it into standby mode
      */
     //% group=Motors
     //% blockId=wemos_standby
-    //% weight=65 blockGap=8
-    //%block="Turn off all motors"
-    export function allOff(): void {
-        if (initalised == false) {
-            init(i2c_address)
-        }
-        sendCommandSetMotor(Motors.MotorA, 4/*STANDBY*/, 0)
+    //% block="Turn off %address"
+    //% inlineInputMode=inline
+    //% weight=45 blockGap=8
+    export function allOff(address: Address): void {
+        init(address);
+        sendCommandSetMotor(address, Motors.MotorA, 4/*STANDBY*/, 0);
     }
 
     /**
@@ -123,13 +118,12 @@ namespace WEMOS_Motor_Shield {
      */
     //% group=Motors
     //% blockId=wemos_motor_off
+    //% block="Turn off %address|%motor"
+    //% inlineInputMode=inline
     //% weight=65 blockGap=8
-    //%block="Turn off %motor"
-    export function motorOff(motor: Motors): void {
-        if (initalised == false) {
-            init(i2c_address)
-        }
-        sendCommandSetMotor(motor, 5/*COAST*/, 0)
+    export function motorOff(address: Address, motor: Motors): void {
+        init(address);
+        sendCommandSetMotor(address, motor, 5/*COAST*/, 0);
     }
 
     /**
@@ -138,13 +132,11 @@ namespace WEMOS_Motor_Shield {
      */
     //% group=Motors
     //% blockId=wemos_motor_brake
-    //% weight=65 blockGap=8
-    //%block="Stop %motor"
-    export function brakeMotor(motor: Motors): void {
-        if (initalised == false) {
-            init(i2c_address)
-        }
-        sendCommandSetMotor(motor, 0/*BRAKE*/, 0)
+    //% block="Stop %address|%motor"
+    //% inlineInputMode=inline
+    //% weight=55 blockGap=8
+    export function brakeMotor(address: Address, motor: Motors): void {
+        init(address);
+        sendCommandSetMotor(address, motor, 0/*BRAKE*/, 0);
     }
-
 }
